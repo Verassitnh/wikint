@@ -35,4 +35,4 @@ type InterestType struct {
 
 // Find takes in the post text. This excludes all other forms of media other than text.
 // it finds the nouns and builds an interest database
-func (i *Interest) Find(post string) []Interest
+// func (i *Interest) Find(post string) []Interest
