@@ -35,7 +35,7 @@ func (d *database) Destroy() {
 	d.db.Close()
 }
 
-func (d *database) InsertUser(u User) {
-	q := `insert into users (id, name, url) values (%v, %v, %s)`
-	d.db.Exec(q, u.id, u.name, u.urls)
+func (d *database) AppendUser(u User) {
+	q := `insert into users (id, name, url) values (%v, %v, %+v)`
+	d.db.Exec(fmt.Sprintf(q, u.id, u.name, u.urls))
 }
