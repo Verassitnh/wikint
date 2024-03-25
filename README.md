@@ -1,5 +1,5 @@
 # [WIP] wikint: Interest Comparison
-This program presents interest comparison data from facebook user profiles in a neat little api.
+This program collects data for interest comparisons and presents it in a neat api.
 
 ## Concepts
 ### profile database
