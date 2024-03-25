@@ -11,7 +11,7 @@ To build the interest database, it scrapes wikipedia for nouns
 
 
 ### comparison api
-The comparison api combines the collected data, so you can compare which interents corolate to other interests.
+The comparison api combines the collected data, so you can compare which interests correlate to other interests.
 
 
 ## Usage
