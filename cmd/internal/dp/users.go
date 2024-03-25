@@ -1,4 +1,4 @@
-package main
+package dp
 
 import (
 	"encoding/json"
@@ -20,7 +20,7 @@ const (
 	idPath   = "node.id"
 	urlPath  = "node.url"
 
-	startingURL  = "https://www.facebook.com/profile.php?id=100078255380484&sk=friends"
+	StartingURL  = "https://www.facebook.com/profile.php?id=100078255380484&sk=friends"
 	fbNextCursor = "require.0.3..0.__bbox.require.11.3.1.__bbox.result.data.user.timeline_nav_app_sections.page_info.end_cursor"
 )
 

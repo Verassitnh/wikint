@@ -1,4 +1,4 @@
-package main
+package dp
 
 // An interest differs from a skill by being an subject or hobby. It does not represent mastery of a subject, merely thought on a subject. It includes all skills, as
 
