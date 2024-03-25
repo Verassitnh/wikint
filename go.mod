@@ -1,4 +1,4 @@
-module github.com/verassitnh/lightcast-interests
+module github.com/verassitnh/wikint
 
 go 1.22.1
 

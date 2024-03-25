@@ -13,34 +13,21 @@ import (
 )
 
 const (
-	cursor         = "AQHR_QntGMVOBk3ZPbLFCk8F0ZDCIgQTJV6iKIrbdWCsa-17t9Bwm5PHaaFoe6eNPYf5kS8OhjJwSd3ZiyvMbkyeYw"
-	id             = "YXBwX2NvbGxlY3Rpb246MTAwMDg2NTU2MDAzMTMwOjIzNTYzMTgzNDk6Mg"
-	usrsPath       = "data.node.pageItems.edges"
-	namePath       = "node.title.text"
-	idPath         = "node.id"
-	urlPath        = "node.url"
-	nextCursorPath = "data.node.pageItems.page_info.end_cursor"
-	lastpagePath   = "data.node.pageItems.page_info.has_next_page"
-	cursorPath     = "cursor"
-	globalIdPath   = "require.0.3.0.__bbox.require.11.3.1].__bbox.result.data.node.id"
-	susrsPath      = "require.0.3.0.__bbox.require.11.3.1.__bbox.result.data.node.all_collections.nodes.0.style_renderer.collection.pageItems.edges"
+	cursor   = "AQHR_QntGMVOBk3ZPbLFCk8F0ZDCIgQTJV6iKIrbdWCsa-17t9Bwm5PHaaFoe6eNPYf5kS8OhjJwSd3ZiyvMbkyeYw"
+	id       = "YXBwX2NvbGxlY3Rpb246MTAwMDg2NTU2MDAzMTMwOjIzNTYzMTgzNDk6Mg"
+	usrsPath = "data.node.pageItems.edges"
+	namePath = "node.title.text"
+	idPath   = "node.id"
+	urlPath  = "node.url"
 
-	filename     = "debug_output.json"
 	startingURL  = "https://www.facebook.com/profile.php?id=100078255380484&sk=friends"
 	fbNextCursor = "require.0.3..0.__bbox.require.11.3.1.__bbox.result.data.user.timeline_nav_app_sections.page_info.end_cursor"
 )
-
-type ScrapedData struct {
-	url  string
-	body io.Reader
-}
 
 type ResultReciever[T any] struct {
 	dataCh chan T
 	errCh  chan error
 }
-
-type FetchResultReciever ResultReciever[io.Reader]
 
 func NewReciever[T any](data T) ResultReciever[T] {
 	return ResultReciever[T]{
@@ -136,7 +123,7 @@ func setBody(b BodyOptions) io.Reader {
 
 }
 
-func graphPing(c string, id string, fr FetchResultReciever) {
+func graphPing(c string, id string, rr ResultReciever[User]) {
 	f := FetchReq{
 		url:    "https://www.facebook.com/api/graphql/",
 		method: http.MethodPost,
@@ -146,23 +133,23 @@ func graphPing(c string, id string, fr FetchResultReciever) {
 		}),
 	}
 
-	go fetch(f, fr, dqGraph)
+	go fetch(f, rr, dqGraph, processGraphData)
 }
 
-func profilePing(url string, fr FetchResultReciever) {
+func profilePing(url string, rr ResultReciever[User]) {
 	f := FetchReq{
 		url:    url,
 		method: http.MethodGet,
 		body:   nil,
 	}
 
-	go fetch(f, fr, dqProfile)
+	go fetch(f, rr, dqProfile, processFBProfile)
 }
 
-func fetch(f FetchReq, fr FetchResultReciever, dq func(*http.Request) *http.Request) {
+func fetch[T any](f FetchReq, rr ResultReciever[T], dq func(*http.Request) *http.Request, handler func(string, ResultReciever[T])) {
 	r, err := http.NewRequest(f.method, f.url, f.body)
 	if err != nil {
-		fr.errCh <- err
+		rr.errCh <- err
 	}
 
 	// disguise the request
@@ -170,108 +157,114 @@ func fetch(f FetchReq, fr FetchResultReciever, dq func(*http.Request) *http.Requ
 
 	res, err := http.DefaultClient.Do(r)
 	if err != nil {
-		fr.errCh <- fmt.Errorf("killed req: %v", f.url)
+		rr.errCh <- fmt.Errorf("killed req: %v", f.url)
 
 	} else {
-		fr.dataCh <- res.Body
-	}
-}
 
-func main() {
-	ScrapeUser(startingURL)
+	}
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		rr.errCh <- fmt.Errorf("failed to read body")
+	}
+	go handler(string(body), rr)
 }
 
 // High level function: put helper functions together
 func ScrapeUser(url string) {
-	fr := FetchResultReciever{
-		dataCh: make(chan io.Reader),
+	rr := ResultReciever[User]{
+		dataCh: make(chan User),
 		errCh:  make(chan error),
 	}
-	r := ResultReciever[User]{
-		dataCh: make(chan User),
-		errCh:  fr.errCh,
-	}
 
-	db, err := Database("../my.db", r.errCh)
+	db, err := Database("../users.db", rr.errCh)
 	if err != nil {
 		log.Fatal("failed to start database")
 	}
 
 	defer db.Destroy()
-	go profilePing(url, fr)
+	go profilePing(url, rr)
 
 	// Infintely listen for results
 	for {
 		select {
-		case pd := <-fr.dataCh:
-			go handleFbData(pd, r, fr)
-		case usr := <-r.dataCh:
+		case usr := <-rr.dataCh:
+			go profilePing(usr.urls[0], rr)
+
+			// We aren't going this, so the database doesn't lock up
 			fmt.Printf("Recieved user: %v\n", usr.name)
 			go db.AppendUser(usr)
-			go profilePing(usr.urls[0], fr)
-		case err := <-r.errCh:
-			fmt.Printf("error: %v\n", err)
+		case err := <-rr.errCh:
+			go fmt.Printf("error: %v\n", err)
 		}
 	}
 
 }
 
-func handleFbData(sd io.Reader, r ResultReciever[User], fr FetchResultReciever) {
-
-	// Read the data into a doc
+func processFBProfile(sd string, rr ResultReciever[User]) {
+	const nodePath = "require.0.3.0.__bbox.require.11.3.1.__bbox.result.data.node.all_collections.nodes.0.style_renderer.collection.pageItems"
 	var doc *goquery.Document
 	var err error
-	var cursor string
-	var id string
+	// fix this redundancy
+	rd := strings.NewReader(sd)
 
-	if doc, err = goquery.NewDocumentFromReader(sd); err != nil {
-		r.errCh <- err
+	// Read the data into a doc
+	if doc, err = goquery.NewDocumentFromReader(rd); err != nil {
+		rr.errCh <- err
 		return
 	}
 
 	doc.Find("script").Each(func(i int, s *goquery.Selection) {
-		fmt.Print(".")
 		if v, ok := s.Attr("type"); ok && v != "application/json" {
-			// r.errCh <- fmt.Errorf("wasn't of type application/json")
 			return
 		}
 		jd := s.Text()
 
 		if !json.Valid([]byte(jd)) {
-			// r.errCh <- fmt.Errorf("didn't find valid json")
 			return
 		}
 
-		res := gjson.Get(jd, susrsPath)
+		node := gjson.Get(jd, nodePath).String()
 
-		if !res.IsArray() {
-			// r.errCh <- fmt.Errorf("didn't find json array")
-			return
-		}
-
-		// Iterate through the array of json results
-		for _, v := range res.Array() {
-
-			// handle two different profile types
-			url := v.Get(urlPath).Str
-			if strings.Contains(url, "profile.php") {
-				url += "&sk=friends"
-			} else {
-				url += "/friends"
-			}
-
-			r.dataCh <- User{
-				name: v.Get(namePath).Str,
-				id:   v.Get(idPath).Str,
-				urls: []string{url},
-			}
-		}
-
-		id = gjson.Get(jd, globalIdPath).Str
-		cursor = res.Get(nextCursorPath).Str
+		go handleFBResponse(node, rr)
 	})
+}
 
-	fmt.Printf("calling graphPing: cursor: %v\nid: %v\n", cursor, id)
-	go graphPing(cursor, id, fr)
+func processGraphData(gd string, rr ResultReciever[User]) {
+	const nodePath = "data.node.PageItems"
+	go handleFBResponse(gjson.Get(gd, nodePath).Str, rr)
+}
+
+func handleFBResponse(jd string, rr ResultReciever[User]) {
+	node := gjson.Parse(jd)
+
+	edges := node.Get("edges")
+	pg := node.Get("page_info")
+
+	if !edges.IsArray() {
+		return
+	}
+	for _, v := range edges.Array() {
+		url := v.Get(urlPath).Str
+		if strings.Contains(url, "profile.php") {
+			url += "&sk=friends"
+		} else {
+			url += "/friends"
+		}
+
+		user := User{
+			name: v.Get(namePath).Str,
+			urls: []string{url},
+		}
+		rr.dataCh <- user
+	}
+
+	// check if chain request continues
+	lp := !pg.Get("has_next_page").Bool() //  negate for variable clarity
+
+	if !lp {
+		id := node.Get("id").Str
+		cursor := pg.Get("end_cursor").String()
+		go graphPing(id, cursor, rr)
+	}
 
 }

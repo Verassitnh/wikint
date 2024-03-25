@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -36,6 +37,12 @@ func (d *database) Destroy() {
 }
 
 func (d *database) AppendUser(u User) {
-	q := `insert into users (id, name, url) values (%v, %v, %+v)`
-	d.db.Exec(fmt.Sprintf(q, u.id, u.name, u.urls))
+	q := `insert into users (id, name, url) values ("%v", "%v", "%+v")`
+	res, err := d.db.Exec(fmt.Sprintf(q, u.id, u.name, u.urls))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(res)
 }
