@@ -19,7 +19,7 @@ func Database(source string, errCh chan error) (database, error) {
 
 	db, err := sql.Open("sqlite3", source)
 	if err != nil {
-		return database{}, fmt.Errorf("Failed to Open database: %s", err)
+		return database{}, fmt.Errorf("failed to Open database: %s", err)
 	}
 
 	prod := os.Getenv("production") == "true"
