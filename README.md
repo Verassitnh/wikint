@@ -1,9 +1,36 @@
-# interest api
----
-This go program scrapes data from facebook and creates an api for analyzing what people are interested in.
+# [WIP] wikint: Interest Comparison
+This program presents interest comparison data from facebook user profiles in a neat little api.
 
-The technical definition for the term interest in this project is a noun with a wikipedia page, that someone is posting about.
+## Concepts
+### profile database
+To build the database, it crawls facebook user profiles and posts.
 
-A future goal is to be able to compare interests with occupations, skills, or location. But for now, only interest vs. interest comparisons are available. 
 
-## 
+### interest database
+To build the interest database, it scrapes wikipedia for nouns
+
+
+### comparison api
+The comparison api combines the collected data, so you can compare which interents corolate to other interests.
+
+
+## Usage
+install:
+```sh
+go install github.com/verassitnh/wikint
+```
+run the data pipelines:
+```
+wikint dp
+```
+then start up the api in another terminal:
+```
+wikint api
+```
+
+
+### api endpoints
+/interests - all interests with interest rating
+
+/interests/:interest - get most interesting topics for users interested in :interest
+
