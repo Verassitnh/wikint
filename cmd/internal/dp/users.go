@@ -176,10 +176,13 @@ func ScrapeUser(url string) {
 		errCh:  make(chan error),
 	}
 
-	db, err := Database("../users.db", rr.errCh)
+	db, err := Database("../wikint.db", rr.errCh)
 	if err != nil {
 		log.Fatal("failed to start database")
 	}
+	// Log
+	fmt.Println("Successfully Opened Database")
+	fmt.Println("Listening...")
 
 	defer db.Destroy()
 	go profilePing(url, rr)
@@ -188,11 +191,10 @@ func ScrapeUser(url string) {
 	for {
 		select {
 		case usr := <-rr.dataCh:
-			go profilePing(usr.urls[0], rr)
-
-			// We aren't going this, so the database doesn't lock up
 			fmt.Printf("Recieved user: %v\n", usr.name)
-			go db.AppendUser(usr)
+
+			go profilePing(usr.urls[0], rr)
+			db.AppendUser(usr)
 		case err := <-rr.errCh:
 			go fmt.Printf("error: %v\n", err)
 		}
@@ -236,7 +238,6 @@ func processGraphData(gd string, rr ResultReciever[User]) {
 
 func handleFBResponse(jd string, rr ResultReciever[User]) {
 	node := gjson.Parse(jd)
-
 	edges := node.Get("edges")
 	pg := node.Get("page_info")
 
