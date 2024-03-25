@@ -194,7 +194,7 @@ func ScrapeUser(url string) {
 			fmt.Printf("Recieved user: %v\n", usr.name)
 
 			go profilePing(usr.urls[0], rr)
-			db.AppendUser(usr)
+			go db.AppendUser(usr)
 		case err := <-rr.errCh:
 			go fmt.Printf("error: %v\n", err)
 		}
