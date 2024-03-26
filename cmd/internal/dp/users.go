@@ -193,8 +193,13 @@ func ScrapeUser(url string) {
 		case usr := <-rr.dataCh:
 			fmt.Printf("Recieved user: %v\n", usr.name)
 
-			go profilePing(usr.urls[0], rr)
-			go db.AppendUser(usr)
+			if !db.UserExists(usr) {
+				fmt.Println("Adding user to database...")
+				go profilePing(usr.urls[0], rr)
+				go db.AppendUser(usr)
+				continue
+			}
+			fmt.Println("User already exists, skipping")
 		case err := <-rr.errCh:
 			go fmt.Printf("error: %v\n", err)
 		}

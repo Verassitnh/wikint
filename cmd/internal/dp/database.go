@@ -42,6 +42,14 @@ func (d *database) AppendUser(u User) {
 	if err != nil {
 		fmt.Print(err)
 	}
+}
 
-	// fmt.Println(res)
+func (d *database) UserExists(u User) bool {
+	v := d.db.QueryRow("select (name = ?) from users", u.name)
+	if err := v.Scan(); err != nil && err == sql.ErrNoRows {
+		return false
+	}
+
+	return true
+
 }
